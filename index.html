@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Test kamery — Discord Activity</title>
+</head>
+<body>
+<!--
+  ============================================================
+  DISCORD ACTIVITY – TEST KAMERY (jeden plik, bez instalowania)
+  ============================================================
+  GDZIE WPISAĆ CLIENT ID?
+  -> Na dole w <script> znajdź linijkę:
+       const CLIENT_ID = "WKLEJ_TUTAJ_SWOJE_CLIENT_ID";
+     i wklej tam swoje Client ID (tylko cyfry).
+     Możesz też wpisać je w pole na górze strony – pole nadpisuje wartość z kodu.
+
+  WAŻNE – MAPOWANIE ADRESÓW W DISCORDZIE (bez tego SDK się nie załaduje):
+  -> Panel dewelopera Discord -> Twoja aplikacja -> Activities -> URL Mappings:
+       Prefix: /esm
+       Target: https://esm.sh
+     Kod ładuje SDK przez "/esm/@discord/embedded-app-sdk?bundle",
+     a Discord zamienia to na "https://esm.sh/@discord/embedded-app-sdk?bundle".
+-->
+
+<style>
+  :root { color-scheme: dark; }
+  body { text-align: center; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 24px 16px 60px; background: #1e1f22; color: #f2f3f5; }
+  .wrap { max-width: 640px; margin: 0 auto; }
+  .card { background: #2b2d31; border: 1px solid #3c3f45; border-radius: 16px; padding: 20px; margin: 14px 0; text-align: left; }
+  .card h2 { margin: 0 0 10px; font-size: 18px; }
+  .card p, .card li { font-size: 14px; line-height: 1.55; color: #dbdee1; }
+  .card code { background: #1e1f22; padding: 2px 6px; border-radius: 6px; color: #ffd479; font-size: 13px; }
+  #clientIdInput { width: 100%; box-sizing: border-box; font-size: 16px; padding: 12px; border-radius: 10px; border: 1px solid #4a4d55; background: #1e1f22; color: #fff; }
+  #cameraBtn { width: 100%; font-size: 22px; font-weight: 800; padding: 20px; border: 0; border-radius: 14px; background: #5865f2; color: #fff; cursor: pointer; }
+  #cameraBtn:hover { background: #4752c4; }
+  #cameraBtn:disabled { opacity: .6; cursor: wait; }
+  #stopBtn { width: 100%; margin-top: 10px; font-size: 15px; font-weight: 700; padding: 12px; border-radius: 10px; border: 1px solid #4a4d55; background: #313338; color: #fff; cursor: pointer; }
+  #cameraPreview { width: 100%; max-height: 420px; background: #000; border-radius: 12px; margin-top: 12px; transform: scaleX(-1); }
+  #statusEl { font-size: 15px; line-height: 1.6; border-radius: 10px; padding: 12px 14px; margin-top: 12px; background: #1e1f22; border: 1px solid #3c3f45; }
+  #statusEl.ok { border-color: #23a55a; }
+  #statusEl.err { border-color: #f23f43; }
+  .small { font-size: 12.5px; color: #b5bac1; }
+  details { text-align: left; }
+  details summary { cursor: pointer; font-weight: 700; }
+</style>
+
+<div class="wrap">
+  <h1>🎥 Test kamery — Discord Activity</h1>
+  <p class="small">Jeden plik, bez instalowania czegokolwiek. Kliknij przycisk i zobaczysz podgląd kamery oraz komunikat po polsku.</p>
+
+  <div class="card">
+    <h2>Krok 1 — Twoje Client ID</h2>
+    <p>Wklej <b>Application / Client ID</b> z Discord Developer Portal. To jedyna rzecz, którą <b>musisz</b> zmienić.</p>
+    <input id="clientIdInput" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="np. 123456789012345678" />
+    <p class="small">Możesz też wpisać je na stałe w kodzie (na dole pliku, linijka <code>const CLIENT_ID = ...</code>). Pole powyżej ma pierwszeństwo.</p>
+  </div>
+
+  <div class="card">
+    <h2>Krok 2 — Kamera</h2>
+    <button id="cameraBtn" type="button">📷 Włącz kamerę</button>
+    <button id="stopBtn" type="button" hidden>⏹ Wyłącz kamerę</button>
+    <video id="cameraPreview" autoplay playsinline muted hidden></video>
+    <div id="statusEl">Jeszcze nie próbowano włączyć kamery. Kliknij przycisk powyżej.</div>
+  </div>
+
+  <div class="card">
+    <h2>Status Discord SDK</h2>
+    <p id="sdkStatusEl">⏳ Łączenie z Discordem (discordSdk.ready())…</p>
+    <p class="small">Jeśli otwierasz ten plik w zwykłej przeglądarce (poza Discordem), status może pokazać błąd/timeout — <b>to jest normalne</b>. Kamera i tak powinna działać w zwykłej przeglądarce.</p>
+  </div>
+
+  <div class="card">
+    <details>
+      <summary>🛠 Diagnostyka (pokaż, gdy coś nie działa)</summary>
+      <p id="diagEl">Zbieranie informacji…</p>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>✅ Co musisz zmienić (cała lista)</h2>
+    <ol>
+      <li><b>Client ID</b> — w polu powyżej albo w kodzie w <code>const CLIENT_ID</code>.</li>
+      <li><b>URL Mappings w Discordzie:</b> Panel dewelopera → Twoja aplikacja → Activities → URL Mappings → dodaj: <code>Prefix: /esm</code> → <code>Target: https://esm.sh</code>. Bez tego Discord zablokuje ładowanie SDK.</li>
+      <li><b>Adres Activity (URL):</b> w tym samym panelu ustaw URL, pod którym hostujesz ten plik (np. link z tunelu do testów albo docelowy hosting).</li>
+      <li><b>Nic więcej w kodzie.</b> Przycisk, podgląd i komunikaty są już gotowe.</li>
+    </ol>
+    <p class="small">Jeśli kamera nie działa, przeczytaj dokładny komunikat pod przyciskiem — zawiera techniczną nazwę błędu (np. <code>NotAllowedError</code>) i polskie wyjaśnienie, co zrobić dalej.</p>
+  </div>
+</div>
+
+<script type="module">
+  // ============================================================
+  // ★★★ TUTAJ WPISZ SWOJE CLIENT ID ★★★
+  // Discord Developer Portal -> Applications -> Twoja aplikacja -> Application ID
+  // Wklej TYLKO cyfry między cudzysłowy, np.: "123456789012345678"
+  // ============================================================
+  const CLIENT_ID = "1572265974973861989";
+
+  const cameraBtn = document.getElementById("cameraBtn");
+  const stopBtn = document.getElementById("stopBtn");
+  const videoEl = document.getElementById("cameraPreview");
+  const statusEl = document.getElementById("statusEl");
+  const sdkStatusEl = document.getElementById("sdkStatusEl");
+  const diagEl = document.getElementById("diagEl");
+  const clientIdInput = document.getElementById("clientIdInput");
+
+  let stream = null;
+  let discordSdk = null;
+
+  function setStatus(html, kind) {
+    statusEl.innerHTML = html;
+    statusEl.classList.remove("ok", "err");
+    if (kind) statusEl.classList.add(kind);
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  function effectiveClientId() {
+    const fromBox = (clientIdInput.value || "").trim();
+    if (/^\d{5,}$/.test(fromBox)) return fromBox;
+    const fromCode = (CLIENT_ID || "").trim();
+    if (/^\d{5,}$/.test(fromCode)) return fromCode;
+    return "";
+  }
+
+  // Diagnostyka pomocna przy zgłaszaniu problemu
+  diagEl.innerHTML =
+    "Adres strony: <code>" + esc(location.href) + "</code><br>" +
+    "HTTPS / bezpieczny kontekst: <code>" + esc(String(window.isSecureContext)) + "</code><br>" +
+    "navigator.mediaDevices: <code>" + esc(String(!!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia))) + "</code><br>" +
+    "W iframe (Discord otwiera Activity w iframe): <code>" + esc(String(window.self !== window.top)) + "</code>";
+
+  // ---------- 1. Discord Embedded App SDK przez /esm/ ----------
+  // Discord wymaga mapowania adresów zewnętrznych, dlatego importujemy przez /esm/,
+  // które w panelu Discord mapujesz na https://esm.sh (instrukcja na górze i na dole strony).
+  // Poza Discordem (zwykła przeglądarka / podgląd) ścieżka /esm/ nie istnieje,
+  // więc mamy zapasowy import bezpośrednio z https://esm.sh — do testów.
+  async function loadSdk() {
+    try {
+      const m = await import("/esm/@discord/embedded-app-sdk?bundle");
+      return m.DiscordSDK;
+    } catch (e1) {
+      const m2 = await import("https://esm.sh/@discord/embedded-app-sdk?bundle");
+      return m2.DiscordSDK;
+    }
+  }
+
+  (async () => {
+    try {
+      const DiscordSDK = await loadSdk();
+      const cid = effectiveClientId() || CLIENT_ID;
+      // Jeśli nie ma jeszcze Client ID, tworzymy SDK z ID zastępczym tylko po to,
+      // żeby wywołać ready() i pokazać status. Prawdziwe ID i tak będzie potrzebne w Discordzie.
+      discordSdk = new DiscordSDK(/^\d{5,}$/.test(cid) ? cid : "0");
+      const readyTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("timeout (poza Discordem to normalne)")), 8000)
+      );
+      await Promise.race([discordSdk.ready(), readyTimeout]);
+      sdkStatusEl.textContent = "✅ Połączono z Discordem (discordSdk.ready() OK).";
+    } catch (err) {
+      sdkStatusEl.textContent =
+        "⚠️ Nie połączono z Discordem: " + (err && err.message ? err.message : String(err)) +
+        " — jeśli testujesz w zwykłej przeglądarce, to normalne. W Discordzie upewnij się, że masz dobre Client ID i mapowanie /esm → https://esm.sh.";
+    }
+  })();
+
+  function describeCameraError(err) {
+    const name = (err && err.name) || "UnknownError";
+    const msg = (err && err.message) || String(err);
+
+    // Polskie wyjaśnienia dla najczęstszych błędów + ZAWSZE dokładna nazwa i treść błędu.
+    const pl = {
+      NotAllowedError: "Odmowa dostępu — kliknięto „Zablokuj” albo przeglądarka/Discord zablokował kamerę. Kliknij ikonę kłódki/kamery przy pasku adresu i zezwól na kamerę, potem spróbuj znowu.",
+      SecurityError: "Blokada bezpieczeństwa — strona nie jest w bezpiecznym kontekście (wymagany HTTPS) albo iframe (Discord) nie ma uprawnień do kamery.",
+      NotFoundError: "Nie znaleziono kamery — urządzenie nie widzi żadnej kamery (lub jest wyłączona w systemie).",
+      DevicesNotFoundError: "Nie znaleziono kamery — urządzenie nie widzi żadnej kamery.",
+      NotReadableError: "Kamera jest zajęta — używa jej inny program (Zoom/Teams/OBS/Discord) albo sterownik się zawiesił. Zamknij inne programy i spróbuj znowu.",
+      TrackStartError: "Kamera jest zajęta — używa jej inny program albo sterownik się zawiesił.",
+      OverconstrainedError: "Kamera nie obsługuje żądanych parametrów. Spróbuj na innej kamerze lub usuń dodatkowe wymagania.",
+      AbortError: "Operacja przerwana — sprzęt albo przeglądarka przerwały włączanie kamery. Spróbuj jeszcze raz.",
+      TypeError: "Błąd parametrów — strona nie obsługuje getUserMedia albo żądanie było puste. Użyj aktualnego Chrome/Edge/Firefox."
+    };
+
+    return { name, msg, hint: pl[name] || "Nieznany błąd. Sprawdź szczegóły techniczne poniżej." };
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus("❌ <b>Nie udało się włączyć kamery.</b><br>Twoja przeglądarka nie obsługuje <code>navigator.mediaDevices.getUserMedia</code>. Użyj aktualnego Chrome, Edge albo Firefox na HTTPS.", "err");
+      return;
+    }
+
+    cameraBtn.disabled = true;
+    cameraBtn.textContent = "⏳ Włączanie kamery…";
+    setStatus("⏳ Proszę o dostęp do kamery — jeśli przeglądarka zapyta, kliknij <b>„Zezwól”</b>…", null);
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      videoEl.srcObject = stream;
+      videoEl.hidden = false;
+      await videoEl.play().catch(() => {});
+      stopBtn.hidden = false;
+      setStatus("✅ <b>Udało się! Kamera działa.</b><br>Widzisz swój podgląd powyżej. Jeśli obraz jest czarny, sprawdź czy nie masz zasłoniętej kamery albo czy inna aplikacja jej nie przejęła.", "ok");
+    } catch (err) {
+      const d = describeCameraError(err);
+      setStatus(
+        "❌ <b>Nie udało się włączyć kamery.</b><br>" + esc(d.hint) +
+        "<br><br>🔧 Dokładny powód: <code>" + esc(d.name) + "</code><br>" +
+        "<span class='small'>" + esc(d.msg) + "</span>",
+        "err"
+      );
+    } finally {
+      cameraBtn.disabled = false;
+      cameraBtn.textContent = "📷 Włącz kamerę";
+    }
+  }
+
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+      stream = null;
+    }
+    videoEl.srcObject = null;
+    videoEl.hidden = true;
+    stopBtn.hidden = true;
+    setStatus("⏹ Kamera wyłączona. Możesz kliknąć <b>„Włącz kamerę”</b>, żeby spróbować znowu.", null);
+  }
+
+  cameraBtn.addEventListener("click", startCamera);
+  stopBtn.addEventListener("click", stopCamera);
+</script>
+
+</body>
+</html>
